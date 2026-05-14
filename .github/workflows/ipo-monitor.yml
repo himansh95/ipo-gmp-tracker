@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '30 3 * * *'   # 9:00 AM IST (UTC+5:30) = 03:30 UTC
   workflow_dispatch:         # Manual trigger for testing
+    inputs:
+      gmp_threshold:
+        description: 'GMP% threshold override (default: 50)'
+        required: false
+        default: ''
+      skip_date_check:
+        description: 'Skip open/close date window check (true = test mode)'
+        required: false
+        default: 'false'
 
 jobs:
   check-gmp:
@@ -36,4 +45,5 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           ALERT_TO:  ${{ secrets.ALERT_TO }}
-          GMP_THRESHOLD: ${{ secrets.GMP_THRESHOLD }}
+          GMP_THRESHOLD: ${{ inputs.gmp_threshold || secrets.GMP_THRESHOLD }}
+          SKIP_DATE_CHECK: ${{ inputs.skip_date_check || 'false' }}
