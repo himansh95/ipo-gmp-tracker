@@ -72,12 +72,15 @@ export async function sendAlertEmail(ipos: AlertIPO[]): Promise<void> {
       </p>
     </div>`;
 
+  // Support multiple recipients: "a@gmail.com, b@gmail.com"
+  const recipients = ALERT_TO.split(',').map((e) => e.trim()).filter(Boolean);
+
   await transporter.sendMail({
     from: `"IPO Monitor" <${SMTP_USER}>`,
-    to: ALERT_TO,
+    to: recipients.join(', '),
     subject,
     html,
   });
 
-  console.log(`✅ Email sent to ${ALERT_TO} for ${ipos.length} IPO(s)`);
+  console.log(`✅ Email sent to ${recipients.join(', ')} for ${ipos.length} IPO(s)`);
 }
