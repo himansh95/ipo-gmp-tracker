@@ -1,0 +1,39 @@
+name: IPO GMP Monitor
+
+on:
+  schedule:
+    - cron: '30 3 * * *'   # 9:00 AM IST (UTC+5:30) = 03:30 UTC
+  workflow_dispatch:         # Manual trigger for testing
+
+jobs:
+  check-gmp:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium browser
+        run: npx playwright install chromium --with-deps
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run IPO GMP monitor
+        run: node dist/index.js
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALERT_TO:  ${{ secrets.ALERT_TO }}
+          GMP_THRESHOLD: ${{ secrets.GMP_THRESHOLD }}
