@@ -5,6 +5,9 @@ on:
     - cron: '30 3 * * *'   # 9:00 AM IST (UTC+5:30) = 03:30 UTC
   workflow_dispatch:         # Manual trigger
 
+permissions:
+  contents: write
+
 jobs:
   check-gmp:
     runs-on: ubuntu-latest
@@ -37,3 +40,6 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           ALERT_TO:  ${{ vars.ALERT_TO }}
           GMP_THRESHOLD: ${{ vars.GMP_THRESHOLD }}
+
+      - name: Keep workflow alive
+        uses: gautamkrishnar/keepalive-workflow@v2
