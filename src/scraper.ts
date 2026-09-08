@@ -39,18 +39,24 @@ export async function scrapeIPOGMP(): Promise<IPOData[]> {
 
     const rows = await page.evaluate(() => {
       const trs = document.querySelectorAll('#reportTable tbody tr');
-      return Array.from(trs).map(tr =>
-        Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim())
-      );
+      return Array.from(trs).map(tr => {
+        const firstCell = tr.querySelector('td');
+        return {
+          cols: Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim()),
+          // First badge in the name cell: "IPO" for mainboard, "BSE SME"/"NSE SME" for SME
+          type: firstCell?.querySelector('.badge')?.textContent?.trim() ?? '',
+          linkName: firstCell?.querySelector('a')?.textContent?.trim() ?? '',
+        };
+      });
     });
 
     const ipos: IPOData[] = [];
 
-    for (const cols of rows) {
+    for (const { cols, type, linkName } of rows) {
       if (cols.length < 9) continue;
+      if (/sme/i.test(type)) continue;
       try {
-        // Col 0: "Bagmane REIT IPO\nL@103.50 (3.5%)" → name is first line
-        const name = (cols[0] ?? '').split('\n')[0].replace(/IPO.*/, 'IPO').trim();
+        const name = linkName ? `${linkName} IPO` : (cols[0] ?? '').split('\n')[0].replace(/IPO.*/, 'IPO').trim();
         if (!name) continue;
 
         // Col 1: "₹4 (4.00%)\n3.50 ↓ / 5 ↑" → GMP = ₹4, GMP% = 4.00
