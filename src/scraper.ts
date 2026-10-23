@@ -25,17 +25,46 @@ function extractFirstNumber(raw: string): number {
   return match ? parseFloat(match[1]) : 0;
 }
 
-export async function scrapeIPOGMP(): Promise<IPOData[]> {
+// Best-effort dismissal of cookie/ad/newsletter modals that can block the table.
+// Non-fatal: if nothing matches, we just move on.
+async function dismissModals(page: import('playwright').Page): Promise<void> {
+  const closeSelectors = [
+    '.modal.show .btn-close',
+    '.modal.show [aria-label="Close"]',
+    '.modal.show .close',
+    '#ad-popup .close',
+    '.popup-close',
+    '.overlay .close',
+  ];
+  for (const selector of closeSelectors) {
+    try {
+      const el = page.locator(selector).first();
+      if (await el.isVisible({ timeout: 1000 })) {
+        await el.click({ timeout: 1000 });
+      }
+    } catch {
+      // selector not present / not clickable — ignore
+    }
+  }
+  // Fallback: Escape key closes most dismissible overlays.
+  await page.keyboard.press('Escape').catch(() => undefined);
+}
+
+async function scrapeOnce(): Promise<IPOData[]> {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
 
   try {
+    // 'networkidle' is unreliable on ad-heavy pages that never go fully idle,
+    // so wait only for the DOM, then explicitly wait for the table we need.
     await page.goto('https://www.investorgain.com/report/live-ipo-gmp/331/ipo/', {
-      waitUntil: 'networkidle',
-      timeout: 30000,
+      waitUntil: 'domcontentloaded',
+      timeout: 45000,
     });
 
-    await page.waitForSelector('#reportTable tbody tr', { timeout: 15000 });
+    await dismissModals(page);
+
+    await page.waitForSelector('#reportTable tbody tr', { timeout: 20000 });
 
     const rows = await page.evaluate(() => {
       const trs = document.querySelectorAll('#reportTable tbody tr');
@@ -83,5 +112,15 @@ export async function scrapeIPOGMP(): Promise<IPOData[]> {
     return ipos;
   } finally {
     await browser.close();
+  }
+}
+
+// Transient timeouts (slow page, stuck modal) happen occasionally — retry once before giving up.
+export async function scrapeIPOGMP(): Promise<IPOData[]> {
+  try {
+    return await scrapeOnce();
+  } catch (err) {
+    console.warn(`⚠️  Scrape attempt failed (${(err as Error).message}), retrying once...`);
+    return await scrapeOnce();
   }
 }

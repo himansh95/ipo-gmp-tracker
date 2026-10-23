@@ -9,7 +9,7 @@ Runs fully automatically on **GitHub Actions** — no server, no database, no ma
 ## How It Works
 
 ```
-Every day at 9:00 AM IST (GitHub Actions cron)
+Every day ~9:00 AM IST (GitHub Actions cron, or external workflow_dispatch trigger)
         │
         ▼
 Scrape investorgain.com using headless Chromium (Playwright)
@@ -110,7 +110,43 @@ gh secret set SMTP_PASS
 
 ### 4. Push to GitHub — cron activates automatically
 
-The workflow runs every day at **9:00 AM IST**. No further setup needed.
+The workflow runs every day at approximately **9:10 AM IST**. No further setup needed.
+
+> ⚠️ **GitHub's `schedule` trigger has no timing guarantee.** GitHub queues
+> scheduled workflows with low priority and explicitly warns they "may be
+> delayed during periods of high load" — in practice this repo has seen
+> delays of several hours on a low-traffic repo. If you need the email by a
+> specific time (e.g. to apply for an IPO same-day), see **Reliable
+> scheduling** below.
+
+---
+
+## Reliable scheduling (optional, recommended)
+
+If the built-in cron is too unpredictable, trigger the workflow externally
+via its `workflow_dispatch` API instead of relying on `schedule`. API/manual
+dispatches are queued with normal priority and start within seconds.
+
+1. Create a GitHub [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
+   scoped only to this repo, with **Actions: Read and write** permission.
+2. Sign up for a free external cron service (e.g. [cron-job.org](https://cron-job.org)).
+3. Create a daily job at **03:30 UTC** (9:00 AM IST) that sends:
+
+   ```
+   POST https://api.github.com/repos/<owner>/ipo-gmp-tracker/actions/workflows/ipo-monitor.yml/dispatches
+   Headers:
+     Authorization: Bearer <your fine-grained PAT>
+     Accept: application/vnd.github+json
+   Body:
+     {"ref":"main"}
+   ```
+
+4. Keep the existing `schedule:` trigger in place as a free fallback in case
+   the external cron service has an outage — worst case you get two emails
+   on the same day instead of zero.
+
+Never commit the PAT to the repo — store it only in the external cron
+service's secret/header configuration.
 
 ---
 

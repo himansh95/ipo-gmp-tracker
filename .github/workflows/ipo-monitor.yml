@@ -2,8 +2,13 @@ name: IPO GMP Monitor
 
 on:
   schedule:
-    - cron: '30 3 * * *'   # 9:00 AM IST (UTC+5:30) = 03:30 UTC
-  workflow_dispatch:         # Manual trigger
+    # GitHub queues ALL `schedule` triggers with no SLA, and delays are worst at
+    # "round" minutes (:00/:15/:30/:45) where every repo on GitHub piles in.
+    # Using an off-peak minute reduces (but does not eliminate) queueing delay.
+    # For guaranteed 9:00 AM IST delivery, trigger this via an external cron
+    # service calling the `workflow_dispatch` API instead — see README.
+    - cron: '41 3 * * *'   # ~9:11 AM IST (UTC+5:30) = 03:41 UTC
+  workflow_dispatch:         # Manual trigger / external scheduler trigger
 
 permissions:
   contents: write
